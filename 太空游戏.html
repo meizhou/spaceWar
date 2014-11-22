@@ -1,0 +1,406 @@
+﻿<!DOCTYPE html>
+
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title></title>
+    <script type="text/javascript" src="jquery.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            var canvas = $("#gameCanvas");
+            var context = canvas.get(0).getContext("2d");
+            var canvasWidth = canvas.width();
+            var canvasHeight = canvas.height();
+            var playGame;
+            var asteroids;
+            var numAsteroids;
+            var player;
+            var score;
+            var scoreTimeout;
+            var arrowUp = 38;
+            var arrowRight = 39;
+            var arrowDown = 40;
+            var ui = $("#gameUI");
+            var uiIntro = $("#gameIntro");
+            var uiStats = $("#gameStats");
+            var uiComplete = $("#gameComplete");
+            var uiPlay = $("#gamePlay");
+            var uiReset = $(".gameReset");
+            var uiScore = $(".gameScore");
+            var image;
+            var soundBackground = $("#gameSoundBackground").get(0);
+            var soundThrust = $("#gameSoundThrust").get(0);
+            var soundDeath = $("#gameSoundDeath").get(0);
+
+            var Asteroid = function (x, y, radius,vX) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.vX = vX;
+
+
+            }
+
+            var Player = function (x, y) {
+                this.x = x;
+                this.y = y;
+
+                /*image = new Image();
+                image.src = "1335529482763.jpg"
+                $(image).load(function () {  context.drawImage(image, 0, 0, 10, 10, 150,canvas.height()/2, 10, 10); })*/
+                this.width = 24;
+                this.height = 24;
+                this.halfWidth = this.width / 2;
+                this.halfHeight = this.height / 2;
+                this.vX = 0;
+                this.vY = 0;
+                this.moveRight = false;
+                this.moveUp = false;
+                this.moveDown = false;
+                this.flamelenght=20;
+
+            }
+
+
+            function startGame() {
+
+                uiScore.html("0");
+                uiStats.show();
+                playGame = false;
+                asteroids = new Array();
+                numAsteroids = 10;
+                score = 0;
+                player = new Player(150,canvasHeight/2);
+                for (var i = 0; i < numAsteroids; i++)
+                {
+                    var raduis = 5 + (Math.random() * 10);
+                    var x = canvasWidth + raduis + Math.floor(Math.random() * canvasWidth);
+                    var y = Math.floor(Math.random() * canvasHeight);
+                    var vX = -5 - (Math.random() * 5);
+                    asteroids.push(new Asteroid( x, y, raduis, vX));
+
+                }
+
+                $(window).keydown(function (e) {
+                    var keycode = e.keyCode;
+                    if (!playGame) {
+                        playGame = true;
+                        animate();
+                        soundBackground.currentTime = 0;
+                        soundBackground.play();
+                        timer();
+                    }
+                    if (keycode == arrowRight)
+                    {
+                        player.moveRight = true;
+                        if (soundThrust.paused) {
+
+                            soundThrust.currentTime = 0;
+                            soundThrust.play();
+
+                        }
+
+                    } else if (keycode == arrowUp)
+                    {
+                        player.moveUp = true;
+                    } else if (keycode == arrowDown)
+                    {
+                        player.moveDown = true;
+                    }
+                })
+                $(window).keyup(function (e) {
+                    var keycode = e.keyCode;
+                    if (keycode == arrowRight) {
+                        player.moveRight = false;
+                        soundThrust.pause();
+
+                    } else if (keycode == arrowUp) {
+                        player.moveUp = false;
+                    } else if (keycode == arrowDown) {
+                        player.moveDown = false;
+                    }
+
+                }
+                )
+                animate();
+
+            }
+
+
+            function init() {
+
+                uiStats.hide();
+                uiComplete.hide();
+                uiPlay.click(function (e) {
+                    e.preventDefault();
+                    uiIntro.hide();
+                    startGame();
+                })
+                uiReset.click(function (e) {
+                    e.preventDefault();
+                    uiComplete.hide();
+                    $(window).unbind("keyup");
+                    $(window).unbind("keydown");
+                    startGame();
+                    soundBackground.pause();
+                    soundThrust.pause();
+                })
+
+            }
+            function timer() {
+                if (playGame) {
+                    scoreTimeout = setTimeout(function () {
+                        uiScore.html(++score);
+                        timer();
+
+                    },1000)
+
+                }
+                if (score % 5 == 0) {
+                    numAsteroids += 5;                }
+
+            }
+            function animate() {
+
+                context.clearRect(0, 0, canvasWidth, canvasHeight)
+
+                for (var i = 0; i < asteroids.length; i++) {
+                    var tmpAsteroid = asteroids[i];
+                    tmpAsteroid.x += tmpAsteroid.vX;
+                    if (tmpAsteroid.x + tmpAsteroid.radius < 0) {
+                                        tmpAsteroid.radius = 5 + (Math.random() * 10);
+                                        tmpAsteroid.x = canvasWidth + tmpAsteroid.radius;
+                                        tmpAsteroid.y = Math.floor(Math.random() * canvasHeight);
+                                        tmpAsteroid.vX = -5 - (Math.random() * 5);
+                    }
+                    var dX = player.x - tmpAsteroid.x;
+                    var dY = player.y - tmpAsteroid.y;
+                    var distance = Math.sqrt((dX * dX) + (dY * dY))
+                    if (distance < player.halfWidth + tmpAsteroid.radius) {
+                        soundThrust.pause();
+                        soundDeath.currentTime = 0;
+                        soundDeath.play();
+                        playGame = false;
+                        clearTimeout(scoreTimeout);
+                        uiStats.hide();
+                        uiComplete.show();
+                        soundBackground.pause();
+                        $(window).unbind("keyup");
+                        $(window).unbind("keydown");
+
+                    }
+                    context.fillStyle = "rgb(255,255,255)";
+                    context.beginPath();
+                    context.arc(tmpAsteroid.x, tmpAsteroid.y, tmpAsteroid.radius
+                        , 0, Math.PI * 2);
+                    context.closePath();
+                    context.fill();
+                }
+                player.vX = 0;
+                player.vY = 0;
+                if (player.moveRight) {
+                    player.vX = 3;
+                } else {
+                    player.vX = -3;}
+                if (player.moveUp) {
+                    player.vY = -3;
+
+                }
+                if (player.moveDown) {
+                    player.vY = 3;
+                }
+                player.x += player.vX;
+                player.y += player.vY;
+                context.fillStyle = "rgb(255,0,0)"
+                context.beginPath();
+                context.moveTo(player.x + player.halfWidth, player.y);
+                context.lineTo(player.x - player.halfWidth, player.y - player.halfHeight);
+                context.lineTo(player.x - player.halfWidth, player.y + player.halfHeight);
+                context.closePath();
+                context.fill();
+                while (asteroids.length < numAsteroids)
+                {
+                    var radius = 5 + (Math.random() * 10);
+                    var x = Math.floor(Math.random() * canvasWidth) + canvasWidth + radius;
+                    var y = Math.floor(Math.random() * canvasHeight);
+                    var vX = -5 - (Math.random() * 5);
+                    asteroids.push(new Asteroid(x, y, radius, vX));
+                }
+                if (player.moveRight)
+                {
+                    context.save();
+                    context.translate(player.x - player.halfHeight, player.y);
+                    if (player.flamelenght == 20) {
+                        player.flamelenght = 15;
+
+                    } else {
+                        player.flamelenght = 20;
+                    }
+                    context.fillStyle = "orange";
+                    context.beginPath();
+                    context.moveTo(0, -5);
+                    context.lineTo(-player.flamelenght, 0);
+                    context.lineTo(0, 5);
+                    context.closePath();
+                    context.fill();
+                    context.restore();
+
+
+                }
+                if (player.x - player.halfHeight < 20) {
+
+                    player.x = 20 + player.halfWidth;
+                } else if (player.x + player.halfHeight > canvas.width() - 20)
+                {
+                    player.x = canvasWidth - 20 - player.halfWidth;
+                }
+                if (player.y - player.halfHeight < 20) {
+                    player.y = 20 + player.halfHeight;
+
+                } else if (player.y + player.halfHeight > canvasHeight - 20)
+                {
+                    player.y = canvasHeight - 20 - player.halfHeight;
+                }
+
+
+                if (playGame) {
+
+                    setTimeout(animate, 33);
+
+                }
+            }
+            init();
+
+        })
+    </script>
+    <style type="text/css">
+        * { margin: 0; padding: 0; }
+        html, body { height: 100%; width: 100%; }
+        canvas { display: block; }
+
+        body {
+	        background:#aa162d;
+	        color: #fff;
+	        font-family: Verdana, Arial, sans-serif;
+	        font-size: 18px;
+        }
+        #fan {
+        position:absolute;
+        padding-left:1200px;
+        font-size:x-large;
+        color:rgba(0, 0, 0, 0.5);
+        }
+        h1 {
+	        font-size: 30px;
+        }
+
+        p {
+	        margin: 0 20px;
+        }
+
+        a {
+	        color: #fff;
+	        text-decoration: none;
+        }
+
+        a:hover {
+	        text-decoration: underline;
+        }
+
+        a.button {
+	        background: #aa162d;
+	        border-radius: 5px;
+	        display: block;
+	        font-size: 30px;
+	        margin: 40px 0 0 270px;
+	        padding: 10px;
+	        width: 200px;
+        }
+
+        a.button:hover {
+	        background:#182c56;
+	        color: #fff;
+	        text-decoration: none;
+        }
+
+        #game {
+	        height: 600px;
+	        left: 50%;
+	        margin: -300px 0 0 -400px;
+	        position: relative;
+	        top: 50%;
+	        width: 800px;
+        }
+
+        #gameCanvas {
+	        background:#100e0e;
+        }
+
+        #gameUI {
+	        height: 600px;
+	        position: absolute;
+	        width: 800px;
+        }
+
+
+        #gameIntro, #gameComplete {
+	        background: rgba(0, 0, 0, 0.5);
+	        margin-top: 100px;
+	        padding: 40px 0;
+	        text-align: center;
+        }
+
+        #gameStats {
+	        font-size: 14px;
+	        margin: 20px 0;
+        }
+
+        #gameStats .gameReset {
+	        margin: 20px 20px 0 0;
+	        position: absolute;
+	        right: 0;
+	        top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="game">
+        <div id="gameUI">
+            <div id="gameIntro">
+                <h1>太空游戏</h1>
+                <p>按play键进入游戏</p>
+                <p>按上下右键开始游戏</p>
+                <p><a id="gamePlay" class="button" href="">Play</a></p>
+            </div>
+            <div id="gameStats">
+                <p>你已在太空中逗留:<span class="gameScore"></span>秒</p>
+                <p><a class="gameReset" href="">重新开始游戏</a></p>
+            </div>
+            <div id="gameComplete">
+                <h1>Game over!</h1>
+                <p>此次太空旅行 <span class="gameScore"></span>秒</p>
+                <p><a class="gameReset button" href="">paly again（再玩一次）</a></p>
+            </div>
+        </div>
+        <canvas id="gameCanvas" width="800" height="600">
+
+        </canvas>
+        <audio id="gameSoundBackground" loop="loop">
+        	    <source src="sounds/background.ogg" />
+				<source src="sounds/background.mp3" />
+			</audio>
+			<audio id="gameSoundThrust" loop="loop">
+				<source src="sounds/thrust.ogg" />
+				<source src="sounds/thrust.mp3" />
+			</audio>
+			<audio id="gameSoundDeath">
+				<source src="sounds/death.ogg" />
+				<source src="sounds/death.mp3" />
+			</audio>
+    </div>
+    <div id="fan">
+        时间：2013年3月19号；
+    </div>
+
+</body>
+</html>
